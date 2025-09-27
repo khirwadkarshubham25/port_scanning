@@ -143,7 +143,6 @@ class PortFiltering(Commons):
 
     def syn_port_scan_stealth_check(self, **kwargs):
         results = self.port_scan_stealth_check(kwargs.get("ip"))
-        print(results)
         open_ports = [p for p, s in results.items() if s == 'open']
         closed_ports = [p for p, s in results.items() if s == 'closed']
         filtered_ports = [p for p, s in results.items() if s == 'filtered']

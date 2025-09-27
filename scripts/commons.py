@@ -131,7 +131,6 @@ class Commons:
             for future in future_to_port:
                 port, status = future.result()
                 results[port] = status
-        print(results)
         return results
 
     def syn_scan_port(self, ip, port):
