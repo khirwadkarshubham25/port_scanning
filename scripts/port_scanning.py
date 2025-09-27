@@ -10,7 +10,6 @@ from scripts.commons import Commons
 class PortFiltering(Commons):
     def __init__(self):
         super().__init__()
-        self.ports = list(range(1, 65535))
 
     def main(self):
         self.clear_cli()
@@ -28,6 +27,9 @@ class PortFiltering(Commons):
 
         if option == 3:
             self.ping_scan(**cli_args)
+
+        if option == 4:
+            self.syn_port_scan_stealth_check(**cli_args)
 
     @staticmethod
     def clear_cli():
@@ -81,9 +83,10 @@ class PortFiltering(Commons):
               '1: Scan All Ports or Vanilla Scan\n'
               '2: Resolve\n'
               '3: Ping Scan\n'
-              '4: ')
+              '4: SYN Scan or TCP stealth scan')
+
         user_scan_choice = input("Your choice: ")
-        choices = ["0", "1", "2", "3"]
+        choices = ["0", "1", "2", "3", "4"]
         if user_scan_choice in choices:
             return int(user_scan_choice)
 
@@ -138,6 +141,22 @@ class PortFiltering(Commons):
             for host in sorted(hosts, key=ipaddress.ip_address):
                 print(host)
 
+    def syn_port_scan_stealth_check(self, **kwargs):
+        results = self.port_scan_stealth_check(kwargs.get("ip"))
+        print(results)
+        open_ports = [p for p, s in results.items() if s == 'open']
+        closed_ports = [p for p, s in results.items() if s == 'closed']
+        filtered_ports = [p for p, s in results.items() if s == 'filtered']
+
+        print(f"Total ports scanned: {len(self.ports)}")
+
+        if open_ports:
+            print(f"OPEN Ports ({len(open_ports)}): {', '.join(map(str, sorted(open_ports)))}")
+
+        if filtered_ports:
+            print(f"FILTERED Ports ({len(filtered_ports)}): {', '.join(map(str, sorted(filtered_ports)))} Firewall likely dropping packets")
+
+        print(f"CLOSED Ports ({len(closed_ports)}): Displayed only if necessary or requested.")
 
 
 if __name__ == '__main__':

@@ -3,12 +3,16 @@ import ipaddress
 import socket
 
 import ping3
+from scapy.layers.inet import IP, TCP
+from scapy.sendrecv import sr1
+from scapy.volatile import RandShort
 
 
 class Commons:
     def __init__(self):
         self.timeout = 2
         self.max_workers = 50
+        self.ports = list(range(1, 10001))
 
     def scan_port(self, host, port):
         try:
@@ -115,3 +119,44 @@ class Commons:
         except Exception as e:
             print(f"Error in ping {ip}. Error\n{e}")
             return  -1, False
+
+    def port_scan_stealth_check(self, ip):
+        results = {}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as exec:
+            future_to_port = {
+                exec.submit(self.syn_scan_port, ip, port): port
+                for port in self.ports
+            }
+
+            for future in future_to_port:
+                port, status = future.result()
+                results[port] = status
+        print(results)
+        return results
+
+    def syn_scan_port(self, ip, port):
+        ip_layer = IP(dst=ip)
+        tcp_layer = TCP(dport=port, sport=RandShort(), flags='S')
+
+        packet = ip_layer / tcp_layer
+
+        try:
+            res = sr1(packet, timeout=self.timeout, verbose=0)
+
+            if res is None:
+                return port, "filtered"
+
+            if res.haslayer(TCP):
+                tcp_flags = res[TCP].flags
+
+                if tcp_flags == 0x12:
+                    sr1(IP(dst=ip)/TCP(dport=port, flags='R'), timeout=0, verbose=0)
+                    return port, "open"
+
+                elif tcp_flags == 0x14:
+                    return port, "closed"
+            return port, "filtered"
+
+        except Exception as e:
+            print(f"Scapy exception during scan of {ip}:{port}: {e}")
+            return port, "error"
