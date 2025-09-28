@@ -10,7 +10,7 @@ from scripts.commons import Commons
 
 class PortFiltering(Commons):
     def __init__(self):
-        super().__init__("Commons Class")
+        super().__init__(1, 10001)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.debug("Initializing the port scanning script")
 
@@ -18,6 +18,12 @@ class PortFiltering(Commons):
     def main(self):
         self.clear_cli()
         cli_args = self.take_cli_options()
+        port_status = self.update_ports(**cli_args)
+
+        if port_status == -1:
+            self.logger.debug("Error in setting the ports")
+            return
+
         option = self.show_all_options()
 
         if option == 0:
@@ -39,6 +45,22 @@ class PortFiltering(Commons):
         if option == 4:
             self.logger.debug(f"Option chosen: {option}. Performing SYN Scan also know as TCP health scan")
             self.syn_port_scan_stealth_check(**cli_args)
+
+        if option == 5:
+            self.logger.debug(f"Option chosen: {option}. Performing XMAS Scan")
+            self.xmas_fin_null_scan("FPU", **cli_args)
+
+        if option == 6:
+            self.logger.debug(f"Option chosen: {option}. Performing FIN Scan")
+            self.xmas_fin_null_scan("F", **cli_args)
+
+        if option == 7:
+            self.logger.debug(f"Option chosen: {option}. Performing NULL Scan")
+            self.xmas_fin_null_scan("", **cli_args)
+
+        if option == 8:
+            self.logger.debug(f"Option chosen: {option}. Performing Sweep Scan")
+            self.sweep_scan(**cli_args)
 
     def clear_cli(self):
         if platform.system() == 'Windows':
@@ -82,11 +104,37 @@ class PortFiltering(Commons):
             type=str
         )
 
+        parser.add_argument(
+            "-sp", "--startPort",
+            dest="start_port",
+            type=int,
+            default=1
+        )
+
+        parser.add_argument(
+            "-ep", "--endPort",
+            dest="end_port",
+            type=int,
+            default=10001
+        )
+
         args = parser.parse_args()
 
         args_dict = vars(args)
         self.logger.debug(f"Arguments Passed: {args_dict}")
         return args_dict
+
+    def update_ports(self, *args, **kwargs):
+        start_port = kwargs.get("start_port")
+        end_port = kwargs.get("end_port") + 1
+
+        if start_port <= 0 or end_port > 65535 or start_port > end_port:
+            self.logger.debug("Error: Port range must be between 1 and 65535, and start must be <= end.")
+            return -1
+
+        self.ports = list(range(start_port, end_port))
+
+        return 1
 
     def show_all_options(self):
         print('Select the type of operation you would like to perform:\n'
@@ -94,10 +142,14 @@ class PortFiltering(Commons):
               '1: Scan All Ports or Vanilla Scan\n'
               '2: Resolve\n'
               '3: Ping Scan\n'
-              '4: SYN Scan or TCP stealth scan')
+              '4: SYN Scan or TCP stealth scan\n'
+              '5: XMAS Scan\n'
+              '6: FIN Scan\n'
+              '7: NULL Scan\n'
+              '8: Sweep Scan')
 
         user_scan_choice = input("Your choice: ")
-        choices = ["0", "1", "2", "3", "4"]
+        choices = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
         if user_scan_choice in choices:
             self.logger.debug(f"The operation that you have decided to perform is {user_scan_choice}")
             return int(user_scan_choice)
@@ -179,6 +231,39 @@ class PortFiltering(Commons):
             self.logger.debug(f"FILTERED Ports ({len(filtered_ports)}): {', '.join(map(str, sorted(filtered_ports)))} Firewall likely dropping packets")
 
         self.logger.debug(f"CLOSED Ports ({len(closed_ports)}): Displayed only if necessary or requested.")
+
+    def xmas_fin_null_scan(self, flag, *args, **kwargs):
+        self.logger.debug("Starting XMAS/FIN/NULL scan")
+        open_ports, closed_ports, filter_ports, error_ports = self.perform_xmas_fin_null_scan(kwargs.get("ip"), flag)
+
+        if open_ports:
+            self.logger.debug(f"OPEN Ports ({len(open_ports)}): {', '.join(map(str, sorted(open_ports)))}")
+
+        if filter_ports:
+            self.logger.debug(f"FILTERED Ports ({len(filter_ports)}): {', '.join(map(str, sorted(filter_ports)))} Firewall likely dropping packets")
+
+        if error_ports:
+            self.logger.debug(f"ERROR Ports ({len(error_ports)}): {', '.join(map(str, sorted(error_ports)))} Firewall likely dropping packets")
+
+        self.logger.debug(f"CLOSED Ports ({len(closed_ports)}): Displayed only if necessary or requested.")
+
+    def sweep_scan(self, *args, **kwargs):
+        self.logger.debug(f"IP Address: {kwargs.get('ip')}")
+        self.logger.debug(f"Start IP Address: {kwargs.get('start_ip')} | End IP Address: {kwargs.get('end_ip')}")
+        self.logger.debug("Getting IPs based on inputs")
+        target_ips = self.get_ip_list(kwargs.get("ip"), kwargs.get("start_ip"), kwargs.get("end_ip"))
+        self.logger.debug(f"The Target IP Addresses are: {target_ips}")
+
+        if target_ips == -1:
+            self.logger.debug("Incorrect inputs")
+        else:
+            self.logger.info("Starting sending IP ping")
+            hosts = self.icmp_sweep(target_ips)
+
+            self.logger.debug(f"Scan finished. Total targets: {len(target_ips)}")
+            self.logger.debug(f"Total live hosts found: {len(hosts)}")
+
+            self.logger.debug(f"Hosts found : {','.join(sorted(hosts, key=ipaddress.ip_address))}")
 
 
 def setup_logging():

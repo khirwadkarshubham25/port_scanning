@@ -4,17 +4,17 @@ import logging
 import socket
 
 import ping3
-from scapy.layers.inet import IP, TCP
+from scapy.layers.inet import IP, TCP, ICMP
 from scapy.sendrecv import sr1
 from scapy.volatile import RandShort
 
 
 class Commons:
-    def __init__(self, name):
+    def __init__(self, start_port, end_port):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.timeout = 2
         self.max_workers = 50
-        self.ports = list(range(1, 10001))
+        self.ports = list(range(start_port, end_port))
 
     def scan_port(self, host, port):
         try:
@@ -174,3 +174,56 @@ class Commons:
             self.logger.debug(f"Scapy exception during scan of {ip}:{port}: {e}")
             self.logger.debug("The port status is error")
             return port, "error"
+
+    def perform_xmas_fin_null_scan(self, ip, flag):
+        open_ports, closed_ports, filter_ports, error_ports = [], [], [], []
+        for port in self.ports:
+            self.logger.debug(f"Sending the packets to {ip}:{port} and with {flag}")
+            xmas_packet = IP(dst=ip) / TCP(dport=port, flags=flag)
+
+            response = sr1(xmas_packet, timeout=self.timeout)
+
+            if response is None:
+                open_ports.append(port)
+                self.logger.debug(f"[Open | Filtered]: Port {port}")
+
+            elif response.haslayer(TCP):
+                if response[TCP].flags == 0x04:
+                    self.logger.debug(f"[Closed]          : Port {port}")
+                    closed_ports.append(port)
+                else:
+                    self.logger.debug(f"[Unexpected Flag] : Port {port} (Flags: {response[TCP].flags})")
+                    error_ports.append(port)
+
+            elif response.haslayer(ICMP):
+                icmp_type = response[ICMP].type
+                icmp_code = response[ICMP].code
+                self.logger.debug(f"[Filtered (ICMP)] : Port {port} (ICMP Type {icmp_type}, Code {icmp_code})")
+                filter_ports.append(port)
+
+        return open_ports, closed_ports, filter_ports, error_ports
+
+    def icmp_sweep(self, target_ips):
+        hosts = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            # Submit all check_host tasks to the executor
+            future_to_ip = {executor.submit(self.check_host, ipaddress.IPv4Address(ip)): ip for ip in target_ips}
+
+            for future in future_to_ip:
+                ip, is_alive = future.result()
+                if is_alive:
+                    hosts.append(ip)
+        return hosts
+
+    def check_host(self, ip):
+        self.logger.debug(f"Sending ICMP packets to {ip}")
+        packet = IP(dst=str(ip)) / ICMP()
+        response = sr1(packet, timeout=self.timeout)
+
+        if response:
+            if response.haslayer(ICMP) and response[ICMP].type == 0:
+                self.logger.debug(f"ICMP packets to IP Address: {ip} is reachable.")
+                return str(ip), True
+
+        self.logger.debug(f"ICMP packets to IP Address: {ip} is not reachable.")
+        return str(ip), False
