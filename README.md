@@ -1,6 +1,5 @@
 # Port Scanning
 
---------------------------------------------------------------------------
 Port scanning is a fundamental network reconnaissance technique used to systematically probe a network range 
 or host to determine the status of its communication ports. For security professionals this process is essential for 
 mapping a system's attack surface and identifying potential vulnerabilities.
