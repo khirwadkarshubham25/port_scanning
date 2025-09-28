@@ -39,27 +39,23 @@ following operations
 
 1. Open Terminal and clone the git repository
 
-    
-    git clone https://github.com/khirwadkarshubham25/cybersec.git
+        git clone https://github.com/khirwadkarshubham25/cybersec.git
 
 2. Move to the working directory
-
     
-    cd cybersec
+        cd cybersec
 
 3. Install Requirements
 
-
-    pip install -r requirements.txt
+        pip install -r requirements.txt
 
 4. To perform operations use below commands
 
-
-    sudo python scripts/port_scanning.py -ip 192.168.1.0/24
-    sudo python scripts/port_scanning.py -ip 192.168.1.0
-    sudo python scripts/port_scanning.py -d www.google.com
-    sudo python scripts/port_scanning.py -s 192.168.1.0 -e 192.168.1.20
-    sudo python scripts/port_scanning.py -sp 20 -ep 100
+        sudo python scripts/port_scanning.py -ip 192.168.1.0/24
+        sudo python scripts/port_scanning.py -ip 192.168.1.0
+        sudo python scripts/port_scanning.py -d www.google.com
+        sudo python scripts/port_scanning.py -s 192.168.1.0 -e 192.168.1.20
+        sudo python scripts/port_scanning.py -sp 20 -ep 100
 
 
 -------------------------------------------------------------------------------
