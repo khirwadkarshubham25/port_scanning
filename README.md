@@ -39,11 +39,11 @@ following operations
 
 1. Open Terminal and clone the git repository
 
-        git clone https://github.com/khirwadkarshubham25/cybersec.git
+        git clone https://github.com/khirwadkarshubham25/port_scanning.git
 
 2. Move to the working directory
     
-        cd cybersec
+        cd port_scanning
 
 3. Install Requirements
 
